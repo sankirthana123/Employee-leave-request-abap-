@@ -30,6 +30,14 @@ Z-Objects Used:
 3. Execute report `ZLEAVE_REQUEST_APP` from SE38.
 4. Test using valid employee numbers and leave types.
 
+Screenshot: Leave Request Output
+![leave request output](leave_report.PNG)
+
+Screenshot: Request Successfully Uploaded
+![uploaded success](leave_report_successfully_uploaded.PNG)
+
+Screenshot: Request Saved in Database
+![saved in db](leave_request_saved_in_database.PNG)
+
  Contact:
-SANKIRTHANA VINDYALA
-GitHub: https://github.com/sankirthana123/sankirthana123  
+SANKIRTHANA VINDYALA  
