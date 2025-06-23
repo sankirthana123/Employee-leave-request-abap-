@@ -1,0 +1,112 @@
+REPORT ZLEAVE_REQUEST_APP.
+
+PARAMETERS :
+  P_PERNR   TYPE PERNR_D OBLIGATORY,
+  P_LEAVE   TYPE CHAR10  OBLIGATORY,
+  P_FROM    TYPE FROM_DATE OBLIGATORY,
+  P_TO      TYPE TO_DATE   OBLIGATORY,
+  P_REASON  TYPE CHAR255 LOWER CASE.
+
+*------------------------------------*
+* For Dropdown: Leave Type Selection *
+*------------------------------------*
+DATA:
+  LT_LEAVE_TYPES TYPE VRM_VALUES,
+  LS_LEAVE_TYPE  TYPE VRM_VALUE.
+
+*-----------------------------*
+* Selection-Screen Custom UI *
+*-----------------------------*
+SELECTION-SCREEN SKIP.
+
+SELECTION-SCREEN:
+  PUSHBUTTON 20(10) TEXT_S USER-COMMAND SUBMIT,
+  PUSHBUTTON 35(10) TEXT_C  USER-COMMAND CLEAR.
+
+*------------------------*
+* Initialization Section *
+*------------------------*
+INITIALIZATION.
+  TEXT_S = 'Submit'.
+  TEXT_C  = 'Clear'.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR P_LEAVE.
+
+  CLEAR LT_LEAVE_TYPES.
+
+  LS_LEAVE_TYPE-KEY = 'SICK'.
+  LS_LEAVE_TYPE-TEXT = 'Sick Leave'.
+  APPEND LS_LEAVE_TYPE TO LT_LEAVE_TYPES.
+
+  LS_LEAVE_TYPE-KEY = 'ANNUAL'.
+  LS_LEAVE_TYPE-TEXT = 'Annual Leave'.
+  APPEND LS_LEAVE_TYPE TO LT_LEAVE_TYPES.
+
+  LS_LEAVE_TYPE-KEY = 'CASUAL'.
+  LS_LEAVE_TYPE-TEXT = 'Casual Leave'.
+  APPEND LS_LEAVE_TYPE TO LT_LEAVE_TYPES.
+
+*----------------------*
+
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      ID     = 'P_LEAVE'
+      VALUES = LT_LEAVE_TYPES.
+  
+AT SELECTION-SCREEN.
+
+  " Check employee exists
+  DATA LV_PERNR TYPE PERNR_D.
+  SELECT SINGLE PERNR FROM PA0001
+    INTO LV_PERNR
+    WHERE PERNR = P_PERNR
+      AND BEGDA <= SY-DATUM
+      AND ENDDA >= SY-DATUM.
+  IF SY-SUBRC <> 0.
+    MESSAGE E005(ZMS_LEAVE_REQUEST).
+  ENDIF.
+
+* Validate Required Fields First
+  IF P_PERNR IS INITIAL OR P_LEAVE IS INITIAL OR
+     P_FROM IS INITIAL OR P_TO IS INITIAL.
+    MESSAGE E003(ZMS_LEAVE_REQUEST). " Please enter all required fields
+  ENDIF.
+
+* Validate Date Logic
+  IF P_FROM > P_TO.
+    MESSAGE E000(ZMS_LEAVE_REQUEST). " From date cannot be after To date
+  ENDIF.
+
+* Handle Button Commands
+  CASE SY-UCOMM.
+    WHEN 'SUBMIT'.
+      PERFORM SAVE_LEAVE_REQUEST.
+    WHEN 'CLEAR'.
+      CLEAR: P_LEAVE, P_FROM, P_TO, P_REASON, P_PERNR.
+      MESSAGE S002(ZMS_LEAVE_REQUEST). " Fields cleared
+      LEAVE TO SCREEN SY-DYNNR.  " Refresh screen
+  ENDCASE.
+
+*-----------------------------*
+* Save Data to Custom Table  *
+*-----------------------------*
+FORM SAVE_LEAVE_REQUEST.
+
+  DATA: LS_LEAVE TYPE ZSA_LEAVE_REQUES.
+
+  LS_LEAVE-PERNR      = P_PERNR.
+  LS_LEAVE-LEAVE_TYPE = P_LEAVE.
+  LS_LEAVE-FROM_DATE  = P_FROM.
+  LS_LEAVE-TO_DATE    = P_TO.
+  LS_LEAVE-REASON     = P_REASON.
+  LS_LEAVE-STATUS     = 'Pending'.
+  LS_LEAVE-CREATED_ON = SY-DATUM.
+
+  INSERT ZSA_LEAVE_REQUES FROM LS_LEAVE.
+  IF SY-SUBRC = 0.
+    MESSAGE S001(ZMS_LEAVE_REQUEST). " Leave request submitted successfully
+  ELSE.
+    MESSAGE E004(ZMS_LEAVE_REQUEST). " Database insertion error
+  ENDIF.
+
+ENDFORM.
